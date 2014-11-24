@@ -1,12 +1,35 @@
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:1.0.2.RELEASE")
+	}
+}
+
 apply plugin: "java"
 apply plugin: "idea"
+apply plugin: 'maven'
 
 repositories {
 	mavenCentral()
+	maven { url "http://maven.sequenceiq.com/snapshots" }
+	maven { url "http://maven.sequenceiq.com/release" }
+	maven { url "http://maven.sequenceiq.com/releases" }
+}
+
+group = 'com.ecwid'
+
+jar {
+	baseName = 'consul'
 }
 
 configurations.all {
 	transitive = false
+}
+
+configurations {
+	deployerJars
 }
 
 dependencies {
@@ -19,6 +42,8 @@ dependencies {
 
 	testCompile "junit:junit:4.11"
 	testCompile "org.hamcrest:hamcrest-core:1.3"
+
+	deployerJars 'org.springframework.build.aws:org.springframework.build.aws.maven:3.0.0.RELEASE'
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
@@ -31,11 +56,25 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
 	from javadoc.destinationDir
 }
 
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			configuration = configurations.deployerJars
+			repository(url: "s3://maven.sequenceiq.com/releases") {
+				authentication(userName: "$System.env.AWS_ACCESS_KEY", passphrase: "$System.env.AWS_SECRET_ACCESS_KEY")
+			}
+			snapshotRepository(url: "s3://maven.sequenceiq.com/snapshots") {
+				authentication(userName: "$System.env.AWS_ACCESS_KEY", passphrase: "$System.env.AWS_SECRET_ACCESS_KEY")
+			}
+		}
+	}
+}
+
 artifacts {
 	archives sourcesJar
 	archives javadocJar
 }
 
 task wrapper(type: Wrapper) {
-	gradleVersion = '2.0'
+	gradleVersion = '1.12'
 }
